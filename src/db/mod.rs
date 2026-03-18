@@ -17,5 +17,9 @@ pub fn init(conn: &Connection) -> Result<()> {
         "{CREATE_TEAMS}\n{CREATE_TEAM_SEASON_STATS}\n{CREATE_TEAM_GAME_STATS}\n\
          {CREATE_GLOBAL_METRICS}\n{CREATE_MATCHUPS}\n{CREATE_PREDICTIONS}"
     ))?;
+    // Idempotent column additions for databases created before these columns existed.
+    // SQLite returns an error when the column already exists; we intentionally ignore it.
+    let _ = conn.execute(ADD_MATCHUP_NEXT_GAME_ID, []);
+    let _ = conn.execute(ADD_MATCHUP_NEXT_SLOT, []);
     Ok(())
 }

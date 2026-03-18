@@ -370,12 +370,12 @@ pub fn get_all_global_metrics(conn: &Connection, season: i64) -> Result<Vec<Glob
 pub fn insert_matchup(conn: &Connection, m: &Matchup) -> Result<i64> {
     conn.execute(
         "INSERT INTO matchups (round, region, team1_id, team2_id, team1_ml, team2_ml,
-          spread, over_under, winner_id, game_date)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+          spread, over_under, winner_id, game_date, next_game_id, next_slot)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
         params![
             m.round, m.region, m.team1_id, m.team2_id,
             m.team1_ml, m.team2_ml, m.spread, m.over_under,
-            m.winner_id, m.game_date
+            m.winner_id, m.game_date, m.next_game_id, m.next_slot
         ],
     )?;
     Ok(conn.last_insert_rowid())
@@ -404,10 +404,32 @@ pub fn update_matchup_winner(conn: &Connection, matchup_id: i64, winner_id: i64)
     Ok(())
 }
 
+/// Set the winner of a game and propagate them into the correct team slot of the
+/// next-round game (determined by `next_game_id` and `next_slot`).
+pub fn advance_winner(conn: &Connection, matchup_id: i64, winner_id: i64) -> Result<()> {
+    update_matchup_winner(conn, matchup_id, winner_id)?;
+
+    let (next_game_id, next_slot) = conn.query_row(
+        "SELECT next_game_id, next_slot FROM matchups WHERE id = ?1",
+        params![matchup_id],
+        |row| Ok((row.get::<_, Option<i64>>(0)?, row.get::<_, Option<i64>>(1)?)),
+    )?;
+
+    if let (Some(next_id), Some(slot)) = (next_game_id, next_slot) {
+        let col = if slot == 1 { "team1_id" } else { "team2_id" };
+        conn.execute(
+            &format!("UPDATE matchups SET {col} = ?2 WHERE id = ?1"),
+            params![next_id, winner_id],
+        )?;
+    }
+
+    Ok(())
+}
+
 pub fn get_matchup(conn: &Connection, id: i64) -> Result<Option<Matchup>> {
     let result = conn.query_row(
         "SELECT id, round, region, team1_id, team2_id, team1_ml, team2_ml,
-                spread, over_under, winner_id, game_date
+                spread, over_under, winner_id, game_date, next_game_id, next_slot
          FROM matchups WHERE id = ?1",
         params![id],
         row_to_matchup,
@@ -422,7 +444,7 @@ pub fn get_matchup(conn: &Connection, id: i64) -> Result<Option<Matchup>> {
 pub fn get_matchups_by_round(conn: &Connection, round: i64) -> Result<Vec<Matchup>> {
     let mut stmt = conn.prepare(
         "SELECT id, round, region, team1_id, team2_id, team1_ml, team2_ml,
-                spread, over_under, winner_id, game_date
+                spread, over_under, winner_id, game_date, next_game_id, next_slot
          FROM matchups WHERE round = ?1 ORDER BY region, id",
     )?;
     let matchups = stmt
@@ -435,7 +457,7 @@ pub fn get_matchups_by_round(conn: &Connection, round: i64) -> Result<Vec<Matchu
 pub fn get_all_matchups(conn: &Connection) -> Result<Vec<Matchup>> {
     let mut stmt = conn.prepare(
         "SELECT id, round, region, team1_id, team2_id, team1_ml, team2_ml,
-                spread, over_under, winner_id, game_date
+                spread, over_under, winner_id, game_date, next_game_id, next_slot
          FROM matchups ORDER BY round, region, id",
     )?;
     let matchups = stmt
@@ -458,6 +480,8 @@ fn row_to_matchup(row: &rusqlite::Row) -> rusqlite::Result<Matchup> {
         over_under: row.get(8)?,
         winner_id: row.get(9)?,
         game_date: row.get(10)?,
+        next_game_id: row.get(11)?,
+        next_slot: row.get(12)?,
     })
 }
 

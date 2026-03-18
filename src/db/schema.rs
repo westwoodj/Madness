@@ -77,18 +77,28 @@ CREATE TABLE IF NOT EXISTS global_metrics (
 
 pub const CREATE_MATCHUPS: &str = "
 CREATE TABLE IF NOT EXISTS matchups (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    round       INTEGER NOT NULL,
-    region      TEXT,
-    team1_id    INTEGER REFERENCES teams(id),
-    team2_id    INTEGER REFERENCES teams(id),
-    team1_ml    INTEGER,
-    team2_ml    INTEGER,
-    spread      REAL,
-    over_under  REAL,
-    winner_id   INTEGER REFERENCES teams(id),
-    game_date   TEXT
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    round        INTEGER NOT NULL,
+    region       TEXT,
+    team1_id     INTEGER REFERENCES teams(id),
+    team2_id     INTEGER REFERENCES teams(id),
+    team1_ml     INTEGER,
+    team2_ml     INTEGER,
+    spread       REAL,
+    over_under   REAL,
+    winner_id    INTEGER REFERENCES teams(id),
+    game_date    TEXT,
+    next_game_id INTEGER REFERENCES matchups(id),
+    next_slot    INTEGER
 );";
+
+/// Idempotent migrations for columns added after the initial schema.
+/// These are applied on every startup; errors are intentionally ignored
+/// (SQLite returns an error when the column already exists).
+pub const ADD_MATCHUP_NEXT_GAME_ID: &str =
+    "ALTER TABLE matchups ADD COLUMN next_game_id INTEGER REFERENCES matchups(id)";
+pub const ADD_MATCHUP_NEXT_SLOT: &str =
+    "ALTER TABLE matchups ADD COLUMN next_slot INTEGER";
 
 pub const CREATE_PREDICTIONS: &str = "
 CREATE TABLE IF NOT EXISTS predictions (

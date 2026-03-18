@@ -88,6 +88,8 @@ pub struct Matchup {
     pub over_under: Option<f64>,
     pub winner_id: Option<i64>,
     pub game_date: Option<String>,
+    pub next_game_id: Option<i64>,
+    pub next_slot: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
