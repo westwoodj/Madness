@@ -1,0 +1,9 @@
+# Prediction model weights — must sum to 1.0
+# Each weight controls how much that factor influences the win probability.
+
+net_eff_diff       = 0.35   # Net efficiency margin differential (off - def efficiency)
+def_eff_diff       = 0.20   # Defensive efficiency differential (lower = better defense)
+seed_diff          = 0.15   # Seed differential (lower seed = stronger team)
+sos_diff           = 0.10   # Strength of schedule differential
+form_diff          = 0.10   # Last-5-game win rate differential
+sportsbook_implied = 0.10   # Implied probability from sportsbook moneyline odds
